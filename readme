@@ -1,0 +1,11 @@
+python environment setup
+
+create using below commands
+> open vscode terminal
+>python --version
+>python -m venv .venv
+>.venv\Scripts\activate
+>pip install -r requirements.txt
+
+after creation to activate environment
+>.venv\Scripts\activate
