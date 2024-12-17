@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doctors-ai-fastapi
+  namespace: the-doctors-ai-fastapi-servicenamespace
+  labels:
+    app: fastapi
+    environment: production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: doctors-ai-fastapi
+  template:
+    metadata:
+      labels:
+        app: doctors-ai-fastapi
+        environment: production
+    spec:
+      containers:
+      - name: doctors-ai-fastapi
+        image: the-doctors-ai/fastapi-app:latest  # Replace with your image name
+        ports:
+        - containerPort: 8000
+        env:
+        - name: ENV
+          value: "production"
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /readiness  # Use a dedicated readiness endpoint
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health  # Use a dedicated liveness endpoint
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-service
+  labels:
+    app: doctors-ai-fastapi
+    environment: production
+spec:
+  selector:
+    app: fastapi
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: LoadBalancer

@@ -5,6 +5,7 @@ create using below commands
 >python --version
 >python -m venv .venv
 >.venv\Scripts\activate
+envname\Scripts\activate
 >pip install -r requirements.txt
 
 after creation to activate environment

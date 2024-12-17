@@ -326,6 +326,7 @@ def transcription_summary(response, llm):
                 Symptoms mentioned by the patient
                 Diagnoses discussed or considered by the doctor
                 Relevant medical terms, conditions, or treatments
+                Try to fetch all the information from the text
                 Any treatment plans or recommendations provided by the doctor
                 Any follow-up instructions or advice given to the patient
 
@@ -346,16 +347,76 @@ def transcription_summary(response, llm):
         logger.error(f"Error during text summarization: {str(e)}")
         raise
 
+def patient_conversation(response, llm):
+    try:
+        model=llm_model(llm)
+        logger.info("patient conversation only.")
+        template = """
+                You are a diligent and attentive doctor's assistant. 
+                Your task is to carefully analyze the provided doctor-patient conversation text: {response}. 
+                Based on this conversation, Rephrase the patient conversation alone as a summary.
+
+                Instructions:
+                Output should be only patient's conversation. don't include doctor conversation.
+
+                Output:
+                Ensure your captures all essential points from the patient's conversation, 
+                while remaining clear, precise, and focused on the critical information.
+                Do not include any extra text before and after the summary.
+                """
+
+        prompt = PromptTemplate(template=template, input_variables=['response'])
+        chain = prompt | model | StrOutputParser()
+
+        result = chain.invoke({"response": response})
+        logger.info("Patient conversation completed successfully")
+
+        return result
+    except Exception as e:
+        logger.error(f"Error during patient conversation: {str(e)}")
+        raise
+
+def doctor_conversation(response, llm):
+    try:
+        model=llm_model(llm)
+        logger.info("Doctor conversation only.")
+        template = """
+                You are a diligent and attentive doctor's assistant. 
+                Your task is to carefully analyze the provided doctor-patient conversation text: {response}. 
+                Based on this conversation, Rephrase the doctor conversation alone as a summary.
+
+                Instructions:
+                Output should be only doctor's conversation. don't include patient conversation.
+
+                Output:
+                Ensure your captures all essential points from the doctor's conversation, 
+                while remaining clear, precise, and focused on the critical information.
+                Do not include any extra text before and after the summary.
+                """
+
+        prompt = PromptTemplate(template=template, input_variables=['response'])
+        chain = prompt | model | StrOutputParser()
+
+        result = chain.invoke({"response": response})
+        logger.info("Doctor conversation completed successfully")
+
+        return result
+    except Exception as e:
+        logger.error(f"Error during doctor conversation: {str(e)}")
+        raise
+
 
 def extrcated_information_from_audio(response,llm="groq"):
     try:
 
         features_json = feature_extraction(text=response,llm=llm)
         summary = transcription_summary(response, llm)
+        patient_text = patient_conversation(response,llm)
+        doctor_text = doctor_conversation(response,llm)
         logger.info("Text processing completed successfully")
-        final_response = {"features": features_json, "summary": summary}
-        logger.info(f"Final response created successfully: {final_response}")
-        return final_response
+        final_responses = {"features": features_json, "summary": summary, "patient_conversation":patient_text, "doctor_conversation":doctor_text}
+        logger.info(f"Final response created successfully: {final_responses}")
+        return final_responses
     
     except ValueError as e:
         logger.error(f"Error during Extraction information from audio: {str(e)}")
