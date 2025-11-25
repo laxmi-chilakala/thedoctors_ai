@@ -3,3 +3,4 @@ envname
 .env
 logs
 __*
+.myenv
