@@ -1,12 +1,212 @@
-python environment setup
+# TheDoctors AIpython environment setup
 
-create using below commands
+
+
+Lightweight FastAPI service that transcribes doctor–patient audio, extracts structured medical information and summaries using an LLM, and returns the results as JSON.create using below commands
+
 > open vscode terminal
->python --version
->python -m venv .venv
->.venv\Scripts\activate
-envname\Scripts\activate
->pip install -r requirements.txt
 
-after creation to activate environment
->.venv\Scripts\activate
+## Project overview> python --version
+
+> python3 -m venv .venv
+
+- Receives uploaded audio files (multipart/form-data).> source .venv/bin/activate   # macOS / Linux (zsh/bash)
+
+- Uses a speech-to-text model (configured via `WHISPER_MODEL` / OpenAI key) to transcribe audio.> pip install -r requirements.txt
+
+- Sends transcription text to a configurable LLM (Groq or OpenAI) to extract structured medical data and produce summaries.
+
+- Returns a combined JSON payload containing extracted features, a concise summary, and separated patient/doctor conversation summaries.Notes:
+
+- On macOS/Linux use the `source .venv/bin/activate` command to activate the virtualenv.
+
+This repo contains the main FastAPI app (`app.py`), LLM/prompt logic (`main.py`), transcription wrapper (`transcribe_data.py`), LLM selection helper (`utility.py`), and logging helper (`logger.py`).- On Windows (PowerShell) use `.\.venv\Scripts\Activate.ps1` or for cmd `\.venv\Scripts\activate.bat`.
+
+
+## Prerequisites
+
+- Python 3.11+ recommended
+- An environment with required environment variables (see below)
+
+## Important environment variables
+
+- `OPENAI_API_KEY` - OpenAI API key (used by transcription or OpenAI LLM path)
+- `WHISPER_MODEL` - Whisper model name used by transcription wrapper
+- `GROQ_API_KEY` - Groq API key (if using Groq LLM)
+- `GROQ_MODEL_NAME` - Groq model name
+- `GPT3_MODEL_NAME` - OpenAI model name for GPT-3.5 endpoint (optional)
+- `GPT4_MODEL_NAME` - OpenAI model name for GPT-4 endpoint (optional)
+
+Tip: store these in a `.env` file for local development and use `python-dotenv` which is already used in the project.
+
+## Setup (local)
+
+1. Create and activate a virtual environment
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate   # macOS / Linux (zsh / bash / zsh)
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+2. Create a `.env` file in the project root with the environment variables listed above (do NOT commit secrets).
+
+3. Run the app locally
+
+```bash
+# start the FastAPI server
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+## API Endpoints
+
+Base URL (local): `http://localhost:8000`
+
+### POST /process-audio/
+
+Description: Upload an audio file to transcribe and extract structured medical information.
+
+Request (multipart/form-data):
+
+- `file` (required) — binary file upload (e.g., audio.mp3, audio.wav)
+- `llm` (optional) — which LLM to use; accepted values: `groq`, `gpt`, `gpt4`. Default is `groq` when omitted.
+
+Example curl request:
+
+```bash
+curl -X POST "http://localhost:8000/process-audio/" \
+  -F "file=@./sample_audio.mp3" \
+  -F "llm=groq"
+```
+
+Responses
+
+- 200 OK: JSON object with the combined results
+- 400/500: error responses (e.g., transcription failed, missing env vars, invalid file)
+
+Sample 200 response schema:
+
+```json
+{
+  "features": { /* JSON output produced by feature_extraction (structured medical data) */ },
+  "summary": "Concise textual summary of the full conversation",
+  "patient_conversation": "Patient-only summarized text",
+  "doctor_conversation": "Doctor-only summarized text"
+}
+```
+
+Request body (multipart/form-data) schema
+
+- Content-Type: multipart/form-data
+- Fields:
+  - `file` (required): the audio file to transcribe. Example content-type: audio/mpeg or audio/wav. Field name must be `file`.
+  - `llm` (optional): string. One of `groq`, `gpt`, `gpt4`. If omitted, defaults to `groq`.
+
+Example form-data (conceptual):
+
+```text
+Content-Disposition: form-data; name="file"; filename="sample_audio.mp3"
+Content-Type: audio/mpeg
+
+<binary audio data>
+
+Content-Disposition: form-data; name="llm"
+
+groq
+```
+
+200 response body — detailed example
+
+Below is an expanded example of a successful 200 OK response. The `features` object follows the `MedicalData` schema in `main.py` and is elided where the schema is large; adjust to your LLM-parsed output.
+
+```json
+{
+  "features": {
+    "comprehensive_medical_history": {
+      "past_medical_history": [ { "name": ["hypertension"] } ],
+      "previous_diagnoses": [ { "condition": "diabetes", "diagnosis_date": "2018-06-01" } ],
+      "past_surgical_history": [ { "date": "2020-03-12", "procedure": ["appendectomy"], "outcome": "uncomplicated" } ],
+      "family_medical_history": { "genetic_disorders": [], "illnesses": ["hypertension"] },
+      "allergies": { "drug_allergies": ["penicillin"], "food_allergies": [], "environmental_allergies": [] },
+      "current_medications": [ { "name": ["amlodipine"], "dosage": "5 mg", "frequency": "once daily", "duration": "ongoing" } ],
+      "past_medications": []
+    },
+    "social_history": { "smoking": "No", "alcohol": "Occasional", "substance_use": "No", "occupation": "Teacher", "living_conditions": "Lives with family", "dietary_habits": "Vegetarian", "exercise_routine": "Moderate" },
+    "current_visit_details": { "onset": "2 days", "location": "throat", "duration": "48 hours", "characteristics": "sore throat", "aggravating_factors": "swallowing", "relieving_factors": "warm liquids", "associated_symptoms": ["fever", "cough"] },
+    "review_of_systems": { "general": "fever, fatigue", "heent": "sore throat", "cardiovascular": null, "respiratory": "cough", "gastrointestinal": null, "genitourinary": null, "musculoskeletal": null, "neurological": null, "psychiatric": null, "skin": null, "endocrine": null, "hematologic": null, "immunologic": null },
+    "physical_examination": { "vitals": { "temperature": "38.2 C", "blood_pressure": "120/80 mmHg", "heart_rate": "88 bpm", "respiratory_rate": "18/min", "spO2": "98%", "height": "N/A", "weight": "N/A", "bmi": "N/A" }, "general_appearance": "mildly ill", "heent": "erythematous throat", "cardiovascular": "normal", "respiratory": "clear", "abdomen": "soft", "extremities": "no edema", "neurological": "alert" },
+    "diagnostic_investigations": { "laboratory_tests": { "blood_tests": ["CBC: WBC elevated"], "urine_analysis": null }, "imaging_studies": null, "special_tests": null },
+    "assessment_and_diagnosis": { "primary_diagnosis": "Acute pharyngitis", "secondary_diagnoses": [], "differential_diagnoses": ["viral pharyngitis", "strep throat"] },
+    "treatment_plan": { "medications": { "name": "paracetamol", "dosage": "500 mg", "frequency": "every 6 hours as needed", "duration": "3 days" }, "procedures_interventions": null, "therapies_recommended": ["rest", "fluids"], "lifestyle_modifications": ["hydration"], "follow_up_date_and_time": null, "additional_tests": ["rapid strep test if worsens"] },
+    "patient_counseling_and_education": { "key_topics_discussed": ["symptom management"], "materials_provided": [], "patient_questions_addressed": "When to seek emergency care" }
+  },
+  "summary": "Patient presents with 2 days of sore throat, fever and cough; exam shows erythematous throat. Primary impression: acute pharyngitis. Supportive care recommended; consider rapid strep if symptoms worsen.",
+  "patient_conversation": "I have a sore throat for two days and a fever. It hurts when I swallow.",
+  "doctor_conversation": "Exam shows inflamed throat; recommend fluids, rest, paracetamol; consider rapid strep testing if symptoms persist or worsen."
+}
+```
+
+Error response examples
+
+- 400 Bad Request (missing file):
+
+```json
+{ "detail": "No file part in the request" }
+```
+
+- 500 Internal Server Error (transcription failed):
+
+```json
+{ "detail": "Transcription failed" }
+```
+
+Notes:
+
+- The `features` payload is the parsed JSON posed by the LLM according to the Pydantic `MedicalData` schema found in `main.py`. It contains fields like `comprehensive_medical_history`, `social_history`, `current_visit_details`, `review_of_systems`, `physical_examination`, `diagnostic_investigations`, `assessment_and_diagnosis`, `treatment_plan`, and `patient_counseling_and_education`.
+- The service currently uses a temporary file on disk for uploads and cleans it up after processing.
+
+### GET /health
+
+Liveness probe. Returns a small JSON payload to indicate the app process is running.
+
+Response:
+
+```json
+{ "status": "ok" }
+```
+
+### GET /readiness
+
+Readiness probe. Returns a small JSON payload to indicate the app is ready to receive traffic.
+
+Response:
+
+```json
+{ "ready": true }
+```
+
+## Behavior & notes
+
+- Upload handling: the app writes the uploaded file to a temporary file with an `.mp3` suffix and passes it to the transcription wrapper. If your input audio has a different format, it still works as long as the transcription client supports it — consider adjusting the temp file suffix or Content-Type checks for stricter validation.
+- LLM selection: controlled via `llm` form field and implemented by `utility.llm_model`. The code supports `groq`, `gpt` (OpenAI chat via `ChatOpenAI`), and `gpt4`.
+- Error handling: the endpoints convert exceptions into `HTTPException` (500) on failure; logs are written by `logger.create_logger`.
+
+## Quick checks
+
+- Syntax check (quick):
+
+```bash
+python3 -m py_compile app.py main.py transcribe_data.py utility.py logger.py
+```
+
+## Next recommended improvements (optional)
+
+- Pin dependency versions in `requirements.txt` to ensure reproducible installs.
+- Add automated tests (unit tests mocking transcription and LLM calls).
+- Add Content-Type and size checks for uploaded files.
+- Consider renaming the internal function `extrcated_information_from_audio` to `extracted_information_from_audio` to fix the typo.
+
+---
+
+If you want, I can also add example unit tests or update the `requirements.txt` with pinned versions that are known to work together.

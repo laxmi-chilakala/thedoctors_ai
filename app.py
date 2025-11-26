@@ -2,11 +2,11 @@ import os
 import uvicorn
 import tempfile
 from pathlib import Path
-from transcribe_data import transcribe
+from transcribe_groqmodel import transcribe
 from main import extrcated_information_from_audio
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from logger import create_logger
-app =FastAPI(debug=True)
+app = FastAPI(debug=True)
 logger = create_logger(__name__)
 
 def get_audio_file_extension(file_path):
@@ -60,5 +60,20 @@ async def process_audio(file: UploadFile = File(...),
                 logger.info("Temporary file cleaned up")
             except Exception as e:
                 logger.error(f"Failed to cleanup temporary file: {str(e)}")
+
+
+
+
+# Basic health and readiness endpoints used by container orchestrators (kubernetes, etc.)
+@app.get("/health")
+def health():
+    """Liveness probe - basic check that the app is running."""
+    return {"status": "ok"}
+
+
+@app.get("/readiness")
+def readiness():
+    """Readiness probe - indicates the app is ready to receive traffic."""
+    return {"ready": True}
 
 

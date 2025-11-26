@@ -411,10 +411,11 @@ def extrcated_information_from_audio(response,llm="groq"):
 
         features_json = feature_extraction(text=response,llm=llm)
         summary = transcription_summary(response, llm)
-        patient_text = patient_conversation(response,llm)
-        doctor_text = doctor_conversation(response,llm)
+        # patient_text = patient_conversation(response,llm)
+        # doctor_text = doctor_conversation(response,llm)
         logger.info("Text processing completed successfully")
-        final_responses = {"features": features_json, "summary": summary, "patient_conversation":patient_text, "doctor_conversation":doctor_text}
+        # final_responses = {"features": features_json, "summary": summary, "patient_conversation":patient_text, "doctor_conversation":doctor_text}
+        final_responses = {"features": features_json, "summary": summary}
         logger.info(f"Final response created successfully: {final_responses}")
         return final_responses
     
@@ -427,5 +428,5 @@ def extrcated_information_from_audio(response,llm="groq"):
 # # # # doctor_type = "dentist"
 # # # # # response = feature_extraction(doctor_type, text,llm="gpt4")
 # # # # # print(response)
-# response=extrcated_information_from_audio(text,llm="gpt4")
+# response=extrcated_information_from_audio(text,llm="groq")
 # print(response)

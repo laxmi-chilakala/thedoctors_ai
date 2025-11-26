@@ -1,6 +1,5 @@
 data
 envname
-.env
 logs
 __*
 .myenv
